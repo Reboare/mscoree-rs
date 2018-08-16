@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "mscoree_sys", 
+    "mscoree_safe",
+]
