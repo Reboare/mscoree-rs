@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Debug;
 use std::ptr;
 use std::rc::{Rc, Weak};
 use std::string::ToString;
@@ -25,6 +27,7 @@ use mscoree_sys::mscoree::{
     IID_ICorRuntimeHost, 
     IID_ITypeNameFactory
 };
+
 extern "system" {
     pub fn GetCurrentProcess() -> HANDLE;
 }
@@ -34,6 +37,7 @@ macro_rules! ENUM_CONSTANTS {
         $(#[$attrs])*
         pub enum $name {
             $($disc),*
+            ,Unknown(String)
         }
 
         impl ToString for $name {
@@ -42,6 +46,7 @@ macro_rules! ENUM_CONSTANTS {
                     $(
                         $name::$disc => String::from($value)
                     ),*
+                    , $name::Unknown(v) => v.clone()
                 }
             }
         }
@@ -52,7 +57,7 @@ macro_rules! ENUM_CONSTANTS {
                     $(
                         $value => $name::$disc,
                     )*
-                    _ => $name::Unknown
+                    _ => $name::Unknown(in_str)
                 }
             }
         }
@@ -60,12 +65,11 @@ macro_rules! ENUM_CONSTANTS {
 }
 
 ENUM_CONSTANTS!{String, 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Hash)]
 enum RuntimeVersion {
     V2 = "v2.0.50727", 
     V3 = "v3.0", 
-    V4 = "v4.0.30319", 
-    Unknown = ""
+    V4 = "v4.0.30319"
 }}
 
 /*CLSID_CorMetaDataDispenser	IID_IMetaDataDispenser, IID_IMetaDataDispenserEx
@@ -77,13 +81,9 @@ CLSID_CLRDebuggingLegacy	IID_ICorDebug
 CLSID_CLRStrongName	IID_ICLRStrongName*/
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Hash)]
 pub enum SupportedInterfaces {
-    //CorMetaDataDispenser = "",
-    //CorMetaDataDispenserRuntime = "",
     CorRuntimeHost,
     CLRRuntimeHost, 
     TypeNameFactory, 
-    //CLRDebuggingLegacy, 
-    //Unknown,
 }
 
 impl SupportedInterfaces {
@@ -104,10 +104,28 @@ impl SupportedInterfaces {
     }
 }
 
+pub struct IntfCtr {
+    inner: *mut LPVOID, 
+    intf_ty: SupportedInterfaces
+}
 
+pub trait RuntimeInfo {
+    fn version(&mut self) -> RuntimeVersion;
+    fn loaded(&mut self) -> bool;
+    fn loadable(&mut self) -> bool;
+    fn started(&mut self) -> bool;
+    fn load_library(&mut self, dll_name: &str);
+    fn interface(&mut self, supported_intf: SupportedInterfaces) -> IntfCtr;
+}
+
+impl Debug for RuntimeInfo + 'static {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "dyn RuntimeInfo{{/*fields omitted*/}}")
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
-pub struct RuntimeInfo {
+pub struct RuntimeInfoImpl {
     version: RuntimeVersion,
     inner: *mut ICLRRuntimeInfo,
     loaded: Option<bool>, 
@@ -115,11 +133,32 @@ pub struct RuntimeInfo {
     started: Option<bool>,
 }
 
-impl RuntimeInfo {
-    pub fn version(&mut self) -> RuntimeVersion {
+impl RuntimeInfoImpl {
+    fn version(in_ptr: *mut ICLRRuntimeInfo) -> RuntimeVersion {
+        assert!(!in_ptr.is_null());
+        let mut dw: DWORD = 0;
+        let _hr = unsafe {
+            (*in_ptr).GetVersionString(ptr::null_mut(), &mut dw)
+        };
+        //dw now contains length of required buffer
+        let mut buffer: Vec<u16> = Vec::with_capacity(dw as usize);
+        let hr = unsafe {
+            (*in_ptr).GetVersionString(buffer.as_mut_ptr(), &mut dw)
+        };
+
+        if hr == S_OK {
+            let bs = BString::from_vec(buffer);
+            return RuntimeVersion::from(bs.to_string());
+        }
+        RuntimeVersion::Unknown(String::from(""))
+    }
+}
+
+impl RuntimeInfo for RuntimeInfoImpl {
+    fn version(&mut self) -> RuntimeVersion {
         match self.version {
-            RuntimeVersion::V2 | RuntimeVersion::V3 | RuntimeVersion::V4 => return self.version, 
-            RuntimeVersion::Unknown => {}
+            RuntimeVersion::V2 | RuntimeVersion::V3 | RuntimeVersion::V4 => return self.version.clone(), 
+            RuntimeVersion::Unknown(_) => {}
         }
 
         let mut dw: DWORD = 0;
@@ -139,7 +178,7 @@ impl RuntimeInfo {
         self.version.clone()
     }
 
-    pub fn loaded(&mut self) -> bool {
+    fn loaded(&mut self) -> bool {
         match self.loaded {
             Some(b) => return b, 
             None => {}
@@ -151,11 +190,11 @@ impl RuntimeInfo {
         vb < 0
     }
 
-    pub fn load_library(&mut self, dll_name: &str) {
+    fn load_library(&mut self, dll_name: &str) {
 
     }
 
-    pub fn interface(&mut self, supported_intf: SupportedInterfaces) -> *mut LPVOID {
+    fn interface(&mut self, supported_intf: SupportedInterfaces) -> IntfCtr {
         let pp_unk: *mut LPVOID = match supported_intf {
             SupportedInterfaces::CLRRuntimeHost => {
                 let mut p: *mut ICLRRuntimeHost = ptr::null_mut();
@@ -173,10 +212,10 @@ impl RuntimeInfo {
         let _hr = unsafe {
             (*self.inner).GetInterface(supported_intf.clsid(), supported_intf.iid(), pp_unk)
         };
-        pp_unk
+        IntfCtr {inner: pp_unk, intf_ty: supported_intf}
     }
 
-    pub fn loadable(&mut self) -> bool {
+    fn loadable(&mut self) -> bool {
         match self.loadable {
             Some(b) => return b, 
             None => {}
@@ -187,7 +226,7 @@ impl RuntimeInfo {
         vb < 0
     }
 
-    pub fn started(&mut self) -> bool {
+    fn started(&mut self) -> bool {
         match self.started {
             Some(b) => return b,
             None => {}
@@ -197,35 +236,42 @@ impl RuntimeInfo {
         self.started = Some(vb < 0);
         vb < 0
     }
+}
 
+pub trait MetaHost {
+    fn runtime(&mut self, version: RuntimeVersion) -> Weak<dyn RuntimeInfo>;
+    fn runtimes(&mut self) -> HashMap<RuntimeVersion, Weak<dyn RuntimeInfo>>;
+    fn loaded_runtimes(&mut self) -> HashMap<RuntimeVersion, bool>;
 }
 
 #[derive(Clone, Debug)]
-pub struct MetaHost {
+pub struct MetaHostImpl {
     inner: *mut ICLRMetaHost,
-    runtimes: HashMap<RuntimeVersion, Rc<RuntimeInfo>>,
+    runtimes: HashMap<RuntimeVersion, Rc<dyn RuntimeInfo>>,
     loaded_runtimes: HashMap<RuntimeVersion, bool>,
 }
 
-impl MetaHost {
-    pub fn new() -> MetaHost {
+impl MetaHostImpl {
+    fn new() -> Box<MetaHost> {
         let mut mh_ptr: *mut ICLRMetaHost = ptr::null_mut();
         let hr = unsafe {
             CLRCreateInstance(&CLSID_CLRMetaHost, &IID_ICLRMetaHost, &mut mh_ptr as *mut _ as *mut LPVOID)
         };
         if hr == 0 && !mh_ptr.is_null() {
-            MetaHost {
+            Box::new(MetaHostImpl {
                 inner: mh_ptr, 
                 runtimes: HashMap::new(), 
                 loaded_runtimes: HashMap::new()
-            }
+            })
         }
         else {
             panic!("HR = 0x{:x}", hr);
         }
     }
+}
 
-    pub fn runtime(&mut self, version: RuntimeVersion) -> Weak<RuntimeInfo> {
+impl MetaHost for MetaHostImpl {
+    fn runtime(&mut self, version: RuntimeVersion) -> Weak<dyn RuntimeInfo> {
         match self.runtimes.get(&version) {
             Some(ri) => return Rc::downgrade(ri),
             None => {}
@@ -236,8 +282,8 @@ impl MetaHost {
             (*self.inner).GetRuntime(bs.as_sys(), &IID_ICLRRuntimeInfo, &mut ri_ptr as *mut _ as *mut LPVOID)
         };
         if hr == 0 && !ri_ptr.is_null() {
-            let ri = RuntimeInfo {
-                version: version, 
+            let ri = RuntimeInfoImpl {
+                version: version.clone(), 
                 inner: ri_ptr, 
                 loaded: None, 
                 loadable: None, 
@@ -252,7 +298,7 @@ impl MetaHost {
         }
     }
 
-    pub fn runtimes(&mut self) -> HashMap<RuntimeVersion, Weak<RuntimeInfo>> {
+    fn runtimes(&mut self) -> HashMap<RuntimeVersion, Weak<dyn RuntimeInfo>> {
         if self.runtimes.is_empty() {
             let mut ieu_ptr: *mut IEnumUnknown = ptr::null_mut();
             let hr = unsafe {
@@ -260,7 +306,7 @@ impl MetaHost {
             };
             if hr == 0 && !ieu_ptr.is_null() {
                 let mut next_hr = S_OK;
-                let mut hmri: HashMap<RuntimeVersion, Rc<RuntimeInfo>> = HashMap::new();
+                let mut hmri: HashMap<RuntimeVersion, Rc<dyn RuntimeInfo>> = HashMap::new();
                 while next_hr == S_OK {
                     let mut iu_ptr: *mut IUnknown = ptr::null_mut();
                     let mut cfetched: ULONG = 0;
@@ -271,8 +317,8 @@ impl MetaHost {
                         let mut ri_ptr: *mut ICLRRuntimeInfo = ptr::null_mut();
                         let inner_hr = unsafe { (*iu_ptr).QueryInterface(&IID_ICLRRuntimeInfo, &mut ri_ptr as *mut _ as *mut LPVOID )};
                         if inner_hr == S_OK && !ri_ptr.is_null() {
-                            let mut ri = RuntimeInfo { 
-                                version: RuntimeVersion::Unknown, 
+                            let mut ri = RuntimeInfoImpl { 
+                                version: RuntimeVersion::Unknown(String::from("")), 
                                 inner: ri_ptr, 
                                 loaded: None, 
                                 loadable: None,
@@ -292,7 +338,7 @@ impl MetaHost {
         weak_map
     }
 
-    pub fn loaded_runtimes(&mut self) -> HashMap<RuntimeVersion, bool> {
+    fn loaded_runtimes(&mut self) -> HashMap<RuntimeVersion, bool> {
         if self.loaded_runtimes.is_empty() {
             let mut ieu_ptr: *mut IEnumUnknown = ptr::null_mut();
             let hr = unsafe {
@@ -312,13 +358,7 @@ impl MetaHost {
                         let mut ri_ptr: *mut ICLRRuntimeInfo = ptr::null_mut();
                         let inner_hr = unsafe { (*iu_ptr).QueryInterface(&IID_ICLRRuntimeInfo, &mut ri_ptr as *mut _ as *mut LPVOID )};
                         if inner_hr == S_OK && !ri_ptr.is_null() {
-                            let mut ri = RuntimeInfo { 
-                                version: RuntimeVersion::Unknown, 
-                                inner: ri_ptr,
-                                loaded: Some(true), 
-                                loadable: Some(true), 
-                                started: Some(true)};
-                            let v = ri.version();
+                            let v = RuntimeInfoImpl::version(ri_ptr);
                             hmri.insert(v, true);
                         }
                     }

@@ -6,3 +6,10 @@ macro_rules! STDAPI {
         ) -> $return_type;}
     };
 }
+//pub type FLockClrVersionCallback = extern fn() -> HRESULT;
+#[macro_export]
+macro_rules! FUNC_PTR {
+    ($name:ident($($p_name:ident : $p_ty:ty),*) -> $res:ty ) => {
+        pub type $name = extern fn($($p_ty),*) -> $res;
+    };
+}

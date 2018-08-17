@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Tyler Laing <trinioler@gmail.com>"]
 
 [dependencies]
-winapi = { version = "0.3.5", features = ["combaseapi", "hstring", "oaidl", "winerror",]}
+winapi = { version = "0.3.5", features = ["combaseapi", "hstring", "oaidl", "processthreadsapi", "winerror",]}
 mscorlib-sys = { version = "0.1.9" }
 
 [build-dependencies]

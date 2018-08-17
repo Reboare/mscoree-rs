@@ -1,25 +1,31 @@
 #![allow(dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
 
-use winapi::ctypes::{c_int, c_long, c_void};
+use winapi::ctypes::{c_char, c_int, c_long, c_void};
 use winapi::shared::basetsd::{SIZE_T, UINT64};
 use winapi::shared::guiddef::{REFCLSID, REFIID};
-use winapi::shared::minwindef::{BOOL, DWORD, HINSTANCE, HMODULE, LPVOID, UINT};
-use winapi::shared::ntdef::{HANDLE, LPCSTR, LPCWSTR, LPWSTR, WCHAR, ULONGLONG};
+use winapi::shared::minwindef::{BOOL, DWORD, HINSTANCE, HMODULE, LPVOID, UINT, ULONG};
+use winapi::shared::ntdef::{HANDLE, LCID, LPCSTR, LPCWSTR, LPWSTR, WCHAR, ULONGLONG};
 use winapi::shared::winerror::HRESULT;
 use winapi::shared::wtypes::BSTR;
 
+use winapi::um::minwinbase::{LPOVERLAPPED_COMPLETION_ROUTINE, LPTHREAD_START_ROUTINE};
+use winapi::um::oaidl::VARIANT;
 use winapi::um::objidlbase::IStream;
+use winapi::um::processthreadsapi::LPPROCESS_INFORMATION;
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
-use winapi::um::winnt::EXCEPTION_POINTERS;
+use winapi::um::winnt::{EXCEPTION_POINTERS, PVOID,  WAITORTIMERCALLBACK};
 
 use activation::IActivationFactory;
 use gchost::COR_GC_STATS;
 
 pub type HWND = *mut c_void;
+
+
 DEFINE_GUID!(CLSID_CorRuntimeHost, 0xcb2f6723, 0xab3a, 0x11d2, 0x9c, 0x40, 0x00, 0xc0, 0x4f, 0xa3, 0x0a, 0x3e);
 DEFINE_GUID!(CLSID_TypeNameFactory, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x25);
 DEFINE_GUID!(CLSID_CLRRuntimeHost, 0x90F1A06E, 0x7712, 0x4762, 0x86, 0xB5, 0x7A, 0x5E, 0xBA, 0x6B, 0xDB, 0x02);
 DEFINE_GUID!(CLSID_ComCallUnmarshal, 0x3F281000,0xE95A,0x11d2,0x88,0x6B,0x00,0xC0,0x4F,0x86,0x9F,0x04);
+//Defined in >=V4
 DEFINE_GUID!(CLSID_ComCallUnmarshalV4, 0x45fb4600,0xe6e8,0x4928,0xb2,0x5e,0x50,0x47,0x6f,0xf7,0x94,0x25);
 DEFINE_GUID!(IID_IObjectHandle, 0xc460e2b4, 0xe199, 0x412a, 0x84, 0x56, 0x84, 0xdc, 0x3e, 0x48, 0x38, 0xc3);
 DEFINE_GUID!(IID_IManagedObject, 0xc3fcc19e, 0xa970, 0x11d2, 0x8b, 0x5a, 0x00, 0xa0, 0xc9, 0xb7, 0xc9, 0xc4);
@@ -32,6 +38,7 @@ DEFINE_GUID!(IID_IHostMemoryNeededCallback, 0x47EB8E57, 0x0846, 0x4546, 0xAF, 0x
 DEFINE_GUID!(IID_IHostMalloc, 0x1831991C, 0xCC53, 0x4A31, 0xB2, 0x18, 0x04, 0xE9, 0x10, 0x44, 0x64, 0x79);
 DEFINE_GUID!(IID_IHostMemoryManager, 0x7BC698D1, 0xF9E3, 0x4460, 0x9C, 0xDE, 0xD0, 0x42, 0x48, 0xE9, 0xFA, 0x25);
 DEFINE_GUID!(IID_ICLRTask, 0x28E66A4A, 0x9906, 0x4225, 0xB2, 0x31, 0x91, 0x87, 0xc3, 0xeb, 0x86, 0x11);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRTask2, 0x28E66A4A, 0x9906, 0x4225, 0xB2, 0x31, 0x91, 0x87, 0xc3, 0xeb, 0x86, 0x12);
 DEFINE_GUID!(IID_IHostTask, 0xC2275828, 0xC4B1, 0x4B55, 0x82, 0xC9, 0x92, 0x13, 0x5F, 0x74, 0xDF, 0x1A);
 DEFINE_GUID!(IID_ICLRTaskManager, 0x4862efbe, 0x3ae5, 0x44f8, 0x8F, 0xEB, 0x34, 0x61, 0x90, 0xeE, 0x8A, 0x34);
@@ -45,11 +52,15 @@ DEFINE_GUID!(IID_IHostAutoEvent, 0x50B0CFCE, 0x4063, 0x4278, 0x96, 0x73, 0xe5, 0
 DEFINE_GUID!(IID_IHostManualEvent, 0x1BF4EC38, 0xAFFE, 0x4fb9, 0x85, 0xa6, 0x52, 0x52, 0x68, 0xf1, 0x5b, 0x54);
 DEFINE_GUID!(IID_IHostSemaphore, 0x855efd47, 0xcc09, 0x463a, 0xa9, 0x7d, 0x16, 0xac, 0xab, 0x88, 0x26, 0x61);
 DEFINE_GUID!(IID_ICLRSyncManager, 0x55FF199D, 0xAD21, 0x48f9, 0xa1, 0x6c, 0xf2, 0x4e, 0xbb, 0xb8, 0x72, 0x7d);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRAppDomainResourceMonitor, 0xC62DE18C, 0x2E23, 0x4AEA, 0x84, 0x23, 0xB4, 0x0C, 0x1F, 0xC5, 0x9E, 0xAE);
 DEFINE_GUID!(IID_ICLRPolicyManager, 0x7D290010, 0xD781, 0x45da, 0xA6, 0xF8, 0xAA, 0x5D, 0x71, 0x1A, 0x73, 0x0E);
 DEFINE_GUID!(IID_ICLRGCManager, 0x54D9007E, 0xA8E2, 0x4885, 0xB7, 0xBF, 0xF9, 0x98, 0xDE, 0xEE, 0x4F, 0x2A);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRGCManager2, 0x0603B793, 0xA97A, 0x4712, 0x9C, 0xB4, 0x0C, 0xD1, 0xC7, 0x4C, 0x0F, 0x7C);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRErrorReportingManager, 0x980d2f1a, 0xbf79, 0x4c08, 0x81, 0x2a, 0xbb, 0x97, 0x78, 0x92, 0x8f, 0x78);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRErrorReportingManager2, 0xc68f63b1, 0x4d8b, 0x4e0b, 0x95, 0x64, 0x9d, 0x2e, 0xfe, 0x2f, 0xa1, 0x8c);
 DEFINE_GUID!(IID_IHostPolicyManager, 0x7AE49844, 0xB1E3, 0x4683, 0xBA, 0x7C, 0x1E, 0x82, 0x12, 0xEA, 0x3B, 0x79);
 DEFINE_GUID!(IID_IHostGCManager, 0x5D4EC34E, 0xF248, 0x457B, 0xB6, 0x03, 0x25, 0x5F, 0xAA, 0xBA, 0x0D, 0x21);
@@ -61,14 +72,18 @@ DEFINE_GUID!(IID_IHostAssemblyManager, 0x613dabd7, 0x62b2, 0x493e, 0x9e, 0x65, 0
 DEFINE_GUID!(IID_IHostSecurityManager, 0x75ad2468, 0xa349, 0x4d02, 0xa7, 0x64, 0x76, 0xa6, 0x8a, 0xee, 0x0c, 0x4f);
 DEFINE_GUID!(IID_IHostSecurityContext, 0x7e573ce4, 0x343, 0x4423, 0x98, 0xd7, 0x63, 0x18, 0x34, 0x8a, 0x1d, 0x3c);
 DEFINE_GUID!(IID_ICLRAssemblyIdentityManager, 0x15f0a9da, 0x3ff6, 0x4393, 0x9d, 0xa9, 0xfd, 0xfd, 0x28, 0x4e, 0x69, 0x72);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRDomainManager, 0x270d00a2, 0x8e15, 0x4d0b, 0xad, 0xeb, 0x37, 0xbc, 0x3e, 0x47, 0xdf, 0x77);
 DEFINE_GUID!(IID_ICLRAssemblyReferenceList, 0x1b2c9750, 0x2e66, 0x4bda, 0x8b, 0x44, 0x0a, 0x64, 0x2c, 0x5c, 0xd7, 0x33);
 DEFINE_GUID!(IID_ICLRReferenceAssemblyEnum, 0xd509cb5d, 0xcf32, 0x4876, 0xae, 0x61, 0x67, 0x77, 0x0c, 0xf9, 0x19, 0x73);
 DEFINE_GUID!(IID_ICLRProbingAssemblyEnum, 0xd0c5fb1f, 0x416b, 0x4f97, 0x81, 0xf4, 0x7a, 0xc7, 0xdc, 0x24, 0xdd, 0x5d);
 DEFINE_GUID!(IID_ICLRHostBindingPolicyManager, 0x4b3545e7, 0x1856, 0x48c9, 0xa8, 0xba, 0x24, 0xb2, 0x1a, 0x75, 0x3c, 0x09);
 DEFINE_GUID!(IID_ICLRRuntimeHost, 0x90F1A06C, 0x7712, 0x4762, 0x86, 0xB5, 0x7A, 0x5E, 0xBA, 0x6B, 0xDB, 0x02);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRRuntimeHost2, 0x712AB73F, 0x2C22, 0x4807, 0xAD, 0x7E, 0xF5, 0x01, 0xD7, 0xb7, 0x2C, 0x2D);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRRuntimeHost4, 0x64F6D366, 0xD7C2, 0x4F1F, 0xB4, 0xB2, 0xE8, 0x16, 0x0C, 0xAC, 0x43, 0xAF);
+//Defined in >=V4
 DEFINE_GUID!(IID_ICLRExecutionManager, 0x1000A3E7, 0xB420, 0x4620, 0xAE, 0x30, 0xFB, 0x19, 0xB5, 0x87, 0xAD, 0x1D);
 DEFINE_GUID!(IID_ITypeName, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x22);
 DEFINE_GUID!(IID_ITypeNameBuilder, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x23);
@@ -193,8 +208,37 @@ STDAPI!{fn LoadStringRC(
     iMax: i32, 
     bQuiet: i32,
 ) -> HRESULT}
+STDAPI!{fn LoadStringRCEx(
+    lcid: LCID, 
+    iResourceID: UINT, 
+    szBuffer: LPWSTR, 
+    iMax: c_int, 
+    bQuiet: c_int, 
+    pcwchUsed: *mut c_int,
+) -> HRESULT}
 
-pub type FnGetCLRRuntimeHost = fn(REFIID, *mut *mut IUnknown) -> HRESULT;
+FUNC_PTR!(FLockClrVersionCallback()-> HRESULT);
+STDAPI!{fn LockClrVersion(
+    hostCallback: FLockClrVersionCallback, 
+    pBeginHostSetup: *mut FLockClrVersionCallback, 
+    pEndHostSetup: *mut FLockClrVersionCallback,
+) -> HRESULT}
+
+STDAPI!{fn CreateDebuggingInterfaceFromVersion(
+    iDebuggerVersion: c_int, 
+    szDebuggeeVersion: LPCWSTR, 
+    ppCordb: *mut *mut IUnknown,
+) -> HRESULT}
+
+STDAPI!{fn GetVersionFromProcess(
+    hProcess: HANDLE, 
+    pVersion: LPWSTR, 
+    cchBuffer: DWORD, 
+    dwLength: *mut DWORD,
+) -> HRESULT}
+
+//added in v4
+FUNC_PTR!(FnGetCLRRuntimeHost(riid: REFIID, ppUnk: *mut *mut IUnknown) -> HRESULT);
 
 ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0001
 {
@@ -205,14 +249,6 @@ ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0001
 
 pub type HOST_TYPE = __MIDL___MIDL_itf_mscoree_0000_0000_0001;
 
-#[repr(C)]
-pub struct _PROCESS_INFORMATION{
-    hProcess: HANDLE, 
-    hThread: HANDLE, 
-    dwProcessId: DWORD, 
-    dwThreadId: DWORD, 
-} 
-pub type LPPROCESS_INFORMATION = *mut _PROCESS_INFORMATION; 
 STDAPI!{fn CorLaunchApplication(
     dwClickOnceHost: HOST_TYPE,
     pwzAppFullName: LPCWSTR,
@@ -223,7 +259,7 @@ STDAPI!{fn CorLaunchApplication(
     lpProcessInformation: LPPROCESS_INFORMATION,
 ) -> HRESULT}
 
-pub type FExecuteInAppDomainCallback = fn(*mut c_void) -> HRESULT;
+FUNC_PTR!(FExecuteInAppDomainCallback(pVoid: *mut c_void) -> HRESULT);
 
 ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0002
 {
@@ -240,6 +276,7 @@ ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0002
     STARTUP_LEGACY_IMPERSONATION	= 0x10000,
     STARTUP_DISABLE_COMMITTHREADSTACK	= 0x20000,
     STARTUP_ALWAYSFLOW_IMPERSONATION	= 0x40000,
+    //all remaining were added in V4
     STARTUP_TRIM_GC_COMMIT	= 0x80000,
     STARTUP_ETW	= 0x100000,
     STARTUP_ARM	= 0x400000,
@@ -265,9 +302,107 @@ ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0004
     RUNTIME_INFO_DONT_RETURN_DIRECTORY	= 0x10,
     RUNTIME_INFO_DONT_RETURN_VERSION	= 0x20,
     RUNTIME_INFO_DONT_SHOW_ERROR_DIALOG	= 0x40,
+    //Added in V4
     RUNTIME_INFO_IGNORE_ERROR_MODE	= 0x1000,
 }}
 pub type RUNTIME_INFO_FLAGS = __MIDL___MIDL_itf_mscoree_0000_0000_0004;
+
+STDAPI!{fn GetRequestedRuntimeVersionForCLSID(
+    rclsid: REFCLSID, 
+    pVersion: LPWSTR, 
+    cchBuffer: DWORD, 
+    dwLength: *mut DWORD, 
+    dwResolutionFlags: CLSID_RESOLUTION_FLAGS,
+) -> HRESULT}
+
+RIDL!{#[uuid(0xC460E2B4, 0xE199, 0x412a, 0x84, 0x56, 0x84, 0xDC, 0x3E, 0x48, 0x38, 0xC3)]
+interface IObjectHandle(IObjectHandleVtbl): IUnknown(IUnknownVtbl){
+    fn Unwrap(ppv: *mut VARIANT,) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0x5C2B07A7, 0x1E98, 0x11d3, 0x87, 0x2F, 0x00, 0xC0, 0x4F, 0x79, 0xED, 0x0D)]
+interface IAppDomainBinding(IAppDomainBindingVtbl): IUnknown(IUnknownVtbl){
+    fn OnAppDomain(pAppDomain: *mut IUnknown,) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0xF31D1788, 0xC397, 0x4725, 0x87, 0xA5, 0x6A, 0xF3, 0x47, 0x2C, 0x27, 0x91)]
+interface ICGThreadControl(ICGThreadControlVtbl): IUnknown(IUnknownVtbl){
+    fn ThreadIsBlockingForSuspension() -> HRESULT, 
+    fn SuspensionStarting() -> HRESULT, 
+    fn SuspensionEnding(Generation: DWORD,) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0x5513D564, 0x8374, 0x4cb9, 0xAE, 0xD9, 0x00, 0x83, 0xF4, 0x16, 0x0A, 0x1D)]
+interface IGCHostControl(IGCHostControlVtbl): IUnknown(IUnknownVtbl){
+    fn RequestVirtualMemLimit(
+        sztMaxVirtualMemMB: SIZE_T, 
+        psztNewMaxVirtualMemMB: *mut SIZE_T,
+    ) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0x84680D3A, 0xB2C1, 0x46e8, 0xAC, 0xC2, 0xDB, 0xC0, 0xA3, 0x59, 0x15, 0x9A)]
+interface ICorThreadPool(ICorThreadPoolVtbl): IUnknown(IUnknownVtbl){
+    fn CorRegisterWaitForSingleObject(
+        phNewWaitObject: *mut HANDLE, 
+        hWaitObject: HANDLE, 
+        Callback: WAITORTIMERCALLBACK,
+        Context: PVOID, 
+        timeout: ULONG, 
+        executeOnlyOnce: BOOL, 
+        result: *mut BOOL,
+    ) -> HRESULT,
+    fn CorUnregisterWait(
+        hWaitObject: HANDLE, 
+        CompletionEvent: HANDLE, 
+        result: *mut BOOL, 
+    ) -> HRESULT,
+    fn CorQueueUserWorkItem(
+        Function: LPTHREAD_START_ROUTINE, 
+        Context: PVOID, 
+        executeOnlyOnce: BOOL, 
+        result: *mut BOOL, 
+    ) -> HRESULT, 
+    fn CorCreateTimer(
+        phNewTimer: *mut HANDLE, 
+        Callback: WAITORTIMERCALLBACK, 
+        Parameter: PVOID, 
+        DueTime: DWORD, 
+        Period: DWORD, 
+        result: *mut BOOL, 
+    ) -> HRESULT, 
+    fn CorChangeTimer(
+        Timer: HANDLE, 
+        DueTime: ULONG, 
+        Period: ULONG, 
+        result: *mut BOOL,
+    ) -> HRESULT, 
+    fn CorDeleteTimer(
+        Timer: HANDLE, 
+        CompletionEvent: HANDLE, 
+        result: *mut BOOL, 
+    ) -> HRESULT,
+    fn CorBindIoCompletionCallback(
+        fileHandle: HANDLE, 
+        callback: LPOVERLAPPED_COMPLETION_ROUTINE,
+    ) -> HRESULT, 
+    fn CorCallOrQueueUserWorkItem(
+        Function: LPTHREAD_START_ROUTINE, 
+        Context: PVOID, 
+        result: *mut BOOL, 
+    ) -> HRESULT, 
+    fn CorSetMaxThreads(
+        MaxWorkerThreads: DWORD, 
+        MaxIOCompletionThreads: DWORD, 
+    ) -> HRESULT, 
+    fn CorGetMaxThreads(
+        MaxWorkerThreads: *mut DWORD, 
+        MaxIOCompletionThreads: *mut DWORD, 
+    ) -> HRESULT, 
+    fn CorGetAvailableThreads(
+        AvailableWorkerThreads: *mut DWORD, 
+        AvailableIOCompletionThreads: *mut DWORD,
+    ) -> HRESULT,
+}}
 
 ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0005
 {
@@ -283,14 +418,6 @@ ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0000_0005
     APPDOMAIN_DISABLE_TRANSPARENCY_ENFORCEMENT	= 0x100,
 }}
 pub type APPDOMAIN_SECURITY_FLAGS = __MIDL___MIDL_itf_mscoree_0000_0000_0005;
-
-STDAPI!{fn GetRequestedRuntimeVersionForCLSID(
-    rclsid: REFCLSID, 
-    pVersion: LPWSTR, 
-    cchBuffer: DWORD, 
-    dwLength: *mut DWORD, 
-    dwResolutionFlags: CLSID_RESOLUTION_FLAGS,
-) -> HRESULT}
 
 DEFINE_GUID!(IID_IDebuggerThreadControl, 0x23d86786, 0x0bb5, 0x4774, 0x8f, 0xb5, 0xe3, 0x52, 0x2a, 0xdd, 0x62, 0x46);
 
@@ -308,6 +435,85 @@ interface IDebuggerInfo(IDebuggerInfoVtbl): IUnknown(IUnknownVtbl){
     fn IsDebuggerAttached(
         pbAttached: *mut BOOL, 
     ) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0x5C2B07A5, 0x1E98, 0x11d3, 0x87, 0x2F, 0x00, 0xC0, 0x4F, 0x79, 0xED, 0x0D)]
+interface ICorConfiguration(ICorConfigurationVtbl): IUnknown(IUnknownVtbl){
+    fn SetGCThreadControl(
+        pGCThreadControl: *mut ICGThreadControl,
+    ) -> HRESULT,
+    fn SetGCHostControl(
+        pGCHostControl: *mut IGCHostControl,
+    ) -> HRESULT,
+    fn SetDebuggerThreadControl(
+        pDebuggerThreadControl: *mut IDebuggerThreadControl,
+    ) -> HRESULT, 
+    fn AddDebuggerSpecialThread(
+        dwSpecialThreadId: DWORD,
+    ) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0xCB2F6722, 0xAB3A, 0x11d2, 0x9C, 0x40, 0x00, 0xC0, 0x4F, 0xA3, 0x0A, 0x3E)]
+interface ICorRuntimeHost(ICorRuntimeHostVtbl): IUnknown(IUnknownVtbl){
+    /*virtual HRESULT STDMETHODCALLTYPE CreateLogicalThreadState( void) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE DeleteLogicalThreadState( void) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE SwitchInLogicalThreadState( 
+            /* [in] */ DWORD *pFiberCookie) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE SwitchOutLogicalThreadState( 
+            /* [out] */ DWORD **pFiberCookie) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE LocksHeldByLogicalThread( 
+            /* [out] */ DWORD *pCount) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE MapFile( 
+            /* [in] */ HANDLE hFile,
+            /* [out] */ HMODULE *hMapAddress) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetConfiguration( 
+            /* [out] */ ICorConfiguration **pConfiguration) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE Start( void) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE Stop( void) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateDomain( 
+            /* [in] */ LPCWSTR pwzFriendlyName,
+            /* [in] */ IUnknown *pIdentityArray,
+            /* [out] */ IUnknown **pAppDomain) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetDefaultDomain( 
+            /* [out] */ IUnknown **pAppDomain) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE EnumDomains( 
+            /* [out] */ HDOMAINENUM *hEnum) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE NextDomain( 
+            /* [in] */ HDOMAINENUM hEnum,
+            /* [out] */ IUnknown **pAppDomain) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CloseEnum( 
+            /* [in] */ HDOMAINENUM hEnum) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateDomainEx( 
+            /* [in] */ LPCWSTR pwzFriendlyName,
+            /* [in] */ IUnknown *pSetup,
+            /* [in] */ IUnknown *pEvidence,
+            /* [out] */ IUnknown **pAppDomain) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateDomainSetup( 
+            /* [out] */ IUnknown **pAppDomainSetup) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateEvidence( 
+            /* [out] */ IUnknown **pEvidence) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE UnloadDomain( 
+            /* [in] */ IUnknown *pAppDomain) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CurrentDomain( 
+            /* [out] */ IUnknown **pAppDomain) = 0;*/
 }}
 
 pub type HDOMNAINENUM = *mut c_void;
@@ -335,6 +541,86 @@ ENUM!{enum __MIDL___MIDL_itf_mscoree_0000_0002_0003
     WAIT_NOTINDEADLOCK	= 0x4,
 }}
 pub type WAIT_OPTION = __MIDL___MIDL_itf_mscoree_0000_0002_0003;
+
+DEFINE_GUID!(IID_ICLRMemoryNotificationCallback, 0x47EB8E57, 0x0846, 0x4546, 0xAF, 0x76, 0x6F, 0x42, 0xFC, 0xFC, 0x26, 0x49);
+
+RIDL!{#[uuid(0x47EB8E57, 0x0846, 0x4546, 0xAF, 0x76, 0x6F, 0x42, 0xFC, 0xFC, 0x26, 0x49)]
+interface ICLRMemoryNotificationCallback(ICLRMemoryNotificationCallbackVtbl): IUnknown(IUnknownVtbl){
+    fn OnMemoryNotification(
+        eMemoryAvailable: EMemoryAvailable,
+    ) -> HRESULT,
+}}
+
+RIDL!{#[uuid(0x1831991C, 0xCC53, 0x4A31, 0xB2, 0x18, 0x04, 0xE9, 0x10, 0x44, 0x64, 0x79)]
+interface IHostMalloc(IHostMallocVtbl): IUnknown(IUnknownVtbl){
+    fn Alloc(
+        cbSize: SIZE_T, 
+        eCriticalLevel: EMemoryCriticalLevel, 
+        ppMem: *mut *mut c_void,
+    ) -> HRESULT, 
+    fn DebugAlloc(
+        cbSize: SIZE_T, 
+        eCriticalLevel: EMemoryCriticalLevel, 
+        pszFileName: *mut c_char, 
+        iLineNo: c_int, 
+        ppMem: *mut *mut c_void, 
+    ) -> HRESULT,
+    fn Free(
+        pMem: *mut c_void, 
+    ) -> HRESULT, 
+}}
+
+RIDL!{#[uuid(0x7BC698D1, 0xF9E3, 0x4460, 0x9C, 0xDE, 0xD0, 0x42, 0x48, 0xE9, 0xFA, 0x25)]
+interface IHostMemoryManager(IHostMemoryManagerVtbl): IUnknown(IUnknownVtbl){
+    fn CreateMalloc(
+        dwMallocType: DWORD, 
+        ppMalloc: *mut *mut IHostMalloc,
+    ) -> HRESULT,
+    fn VirtualAlloc(
+        pAddress: *mut c_void, 
+        dwSize: SIZE_T, 
+        flAllocationType: DWORD, 
+        flProtect: DWORD, 
+        eCriticalLevel: EMemoryCriticalLevel, 
+        ppMem: *mut *mut c_void,
+    ) -> HRESULT,
+    fn VirtualFree(
+        lpAddress: LPVOID, 
+        dwSize: SIZE_T, 
+        dwFreeType: DWORD,
+    ) -> HRESULT,
+    fn VirtualQuery(
+        lpAddress: *mut c_void, 
+        lpBuffer: *mut c_void, 
+        dwLength: SIZE_T, 
+        pResult: SIZE_T,
+    ) -> HRESULT,
+    fn VirtualProtect(
+        lpAddress: *mut c_void,
+        dwSize: SIZE_T, 
+        flNewProtect: DWORD, 
+        pflOldProtect: *mut DWORD, 
+    ) -> HRESULT,
+    fn GetMemoryLoad(
+        pMemoryLoad: *mut DWORD,
+        pAvailableBytes: *mut SIZE_T, 
+    ) -> HRESULT,
+    fn RegisterMemoryNotificationCallback(
+        pCallBack: *mut ICLRMemoryNotificationCallback,
+    ) -> HRESULT,
+    fn NeedsVirtualAddressSpace(
+        startAddress: LPVOID, 
+        size: SIZE_T, 
+    ) -> HRESULT,
+    fn AcquiredVirtualAddressSpace(
+        startAddress: LPVOID, 
+        size: SIZE_T,
+    ) -> HRESULT,
+    fn ReleasedVirtualAddressSpace(
+        startAddress: LPVOID,
+    ) -> HRESULT,
+}}
+
 pub type TASKID = UINT64;
 pub type CONNID = DWORD;
 
@@ -870,65 +1156,3 @@ interface ICLRAppDomainResourceMonitor(ICLRAppDomainResourceMonitorVtbl): IUnkno
     ) -> HRESULT,
 }}
 
-RIDL!{#[uuid(0xCB2F6722, 0xAB3A, 0x11d2, 0x9C, 0x40, 0x00, 0xC0, 0x4F, 0xA3, 0x0A, 0x3E)]
-interface ICorRuntimeHost(ICorRuntimeHostVtbl): IUnknown(IUnknownVtbl){
-    /*virtual HRESULT STDMETHODCALLTYPE CreateLogicalThreadState( void) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE DeleteLogicalThreadState( void) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE SwitchInLogicalThreadState( 
-            /* [in] */ DWORD *pFiberCookie) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE SwitchOutLogicalThreadState( 
-            /* [out] */ DWORD **pFiberCookie) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE LocksHeldByLogicalThread( 
-            /* [out] */ DWORD *pCount) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE MapFile( 
-            /* [in] */ HANDLE hFile,
-            /* [out] */ HMODULE *hMapAddress) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE GetConfiguration( 
-            /* [out] */ ICorConfiguration **pConfiguration) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE Start( void) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE Stop( void) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CreateDomain( 
-            /* [in] */ LPCWSTR pwzFriendlyName,
-            /* [in] */ IUnknown *pIdentityArray,
-            /* [out] */ IUnknown **pAppDomain) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE GetDefaultDomain( 
-            /* [out] */ IUnknown **pAppDomain) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE EnumDomains( 
-            /* [out] */ HDOMAINENUM *hEnum) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE NextDomain( 
-            /* [in] */ HDOMAINENUM hEnum,
-            /* [out] */ IUnknown **pAppDomain) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CloseEnum( 
-            /* [in] */ HDOMAINENUM hEnum) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CreateDomainEx( 
-            /* [in] */ LPCWSTR pwzFriendlyName,
-            /* [in] */ IUnknown *pSetup,
-            /* [in] */ IUnknown *pEvidence,
-            /* [out] */ IUnknown **pAppDomain) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CreateDomainSetup( 
-            /* [out] */ IUnknown **pAppDomainSetup) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CreateEvidence( 
-            /* [out] */ IUnknown **pEvidence) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE UnloadDomain( 
-            /* [in] */ IUnknown *pAppDomain) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CurrentDomain( 
-            /* [out] */ IUnknown **pAppDomain) = 0;*/
-}}
