@@ -1,7 +1,30 @@
 #![allow(dead_code, non_snake_case, non_upper_case_globals, non_camel_case_types)]
+// metahost.rs - MIT License
+//  MIT License
+//  Copyright (c) 2018 Tyler Laing (ZerothLaw)
+// 
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+// 
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+// 
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
 
+
+use winapi::ctypes::c_void;
 use winapi::shared::basetsd::ULONG64;
-use winapi::shared::guiddef::{REFCLSID, REFIID};
+use winapi::shared::guiddef::{CLSID, REFCLSID, REFIID};
 use winapi::shared::minwindef::{BOOL, BYTE, DWORD, HMODULE, LPVOID, UINT, ULONG, WORD};
 use winapi::shared::ntdef::{HANDLE, LONG, LPCSTR, LPCWSTR, LPWSTR, WCHAR};
 use winapi::shared::winerror::HRESULT;
@@ -31,14 +54,18 @@ DEFINE_GUID!(IID_ICLRStrongName2, 0xC22ED5C5, 0x4B59, 0x4975, 0x90, 0xEB, 0x85, 
 DEFINE_GUID!(IID_ICLRStrongName3, 0x22c7089b, 0xbbd3, 0x414a, 0xb6, 0x98, 0x21, 0x0f, 0x26, 0x3f, 0x1f, 0xed);
 DEFINE_GUID!(CLSID_CLRDebuggingLegacy, 0xDF8395B5, 0xA4BA, 0x450b, 0xA7, 0x7C, 0xA9, 0xA4, 0x77, 0x62, 0xC5, 0x20);
 DEFINE_GUID!(CLSID_CLRProfiling, 0xbd097ed8, 0x733e, 0x43fe, 0x8e, 0xd7, 0xa9, 0x5f, 0xf9, 0xa8, 0x44, 0x8c);
+DEFINE_GUID!(IID_ICLRProfiling, 0xb349abe3, 0xb56f, 0x4689, 0xbf, 0xcd, 0x76, 0xbf, 0x39, 0xd8, 0x88, 0xea);
 DEFINE_GUID!(IID_ICLRDebuggingLibraryProvider, 0x3151c08d, 0x4d09, 0x4f9b, 0x88, 0x38, 0x28, 0x80, 0xbf, 0x18, 0xfe, 0x51);
 DEFINE_GUID!(IID_ICLRDebuggingLibraryProvider2, 0xE04E2FF1, 0xDCFD, 0x45D5, 0xBC, 0xD1, 0x16, 0xFF, 0xF2, 0xFA, 0xF7, 0xBA);
 
-type CLRCreateInstanceFnPtr = fn(REFCLSID, REFIID, *mut LPVOID) -> HRESULT;
-type CreateInterfaceFnPtr = fn(REFCLSID, REFIID, *mut LPVOID) -> HRESULT;
-type CallbackThreadSetFnPtr = fn() -> HRESULT;
-type CallbackThreadUnsetFnPtr = fn() -> HRESULT;
-type RuntimeLoadedCallbackFnPtr = fn(*mut ICLRRuntimeInfo, CallbackThreadSetFnPtr, CallbackThreadUnsetFnPtr);
+FUNC_PTR!{CLRCreateInstanceFnPtr(rclsid: REFCLSID, riid: REFIID, pvoid: *mut LPVOID) -> HRESULT}
+FUNC_PTR!{CreateInterfaceFnPtr(rclsid: REFCLSID, riid: REFIID, pvoid: *mut LPVOID) -> HRESULT}
+FUNC_PTR!{CallbackThreadSetFnPtr() -> HRESULT}
+FUNC_PTR!{CallbackThreadUnsetFnPtr() -> HRESULT}
+FUNC_PTR!{RuntimeLoadedCallbackFnPtr(
+    pInfo: *mut ICLRRuntimeInfo, 
+    pfnCallbackThreadSet: CallbackThreadSetFnPtr, 
+    pfnCallbackThreadUnset: CallbackThreadUnsetFnPtr)}
 
 RIDL!{#[uuid(0xD332DB9E, 0xB9B3, 0x4125, 0x82, 0x07, 0xA1, 0x48, 0x84, 0xF5, 0x32, 0x16)]
 interface ICLRMetaHost(ICLRMetaHostVtbl): IUnknown(IUnknownVtbl){
@@ -107,6 +134,18 @@ interface ICLRMetaHostPolicy(ICLRMetaHostPolicyVtbl): IUnknown(IUnknownVtbl){
     ) -> HRESULT,
 }}
 
+RIDL!{#[uuid(0xB349ABE3, 0xB56F, 0x4689, 0xBF, 0xCD, 0x76, 0xBF, 0x39, 0xD8, 0x88, 0xEA)]
+interface ICLRProfiling(ICLRProfilingVtbl): IUnknown(IUnknownVtbl){
+    fn AttachProfiler(
+        dwProfileeProcessID: DWORD, 
+        dwMillisecondsMax: DWORD, 
+        pCldsidProfiler: *const CLSID, 
+        wszProfilerPath: LPCWSTR, 
+        pvClientData: *mut c_void, 
+        cbClientData: UINT, 
+    ) -> HRESULT, 
+}}
+
 STRUCT!{struct _CLR_DEBUGGING_VERSION {
     wStructVersion: WORD, 
     wMajor: WORD, 
@@ -133,7 +172,7 @@ interface ICLRDebuggingLibraryProvider(ICLRDebuggingLibraryProviderVtbl): IUnkno
 }}
 
 RIDL!{#[uuid(0xE04E2FF1, 0xDCFD, 0x45D5, 0xBC, 0xD1, 0x16, 0xFF, 0xF2, 0xFA, 0xF7, 0xBA)]
-interface ICLRDebuggingLibraryProvider2(ICLRDebuggingLibraryProvider2Vtbl): IUnknown(IUnknownVtbl){
+interface ICLRDebuggingLibraryProvider2(ICLRDebuggingLibraryProvider2Vtbl): ICLRDebuggingLibraryProvider(ICLRDebuggingLibraryProviderVtbl){
     fn ProvideLibrary2(    
         pwszFileName: *const WCHAR, 
         dwTimestamp: DWORD, 
