@@ -1,3 +1,4 @@
+#![feature(macro_literal_matcher)]
 // lib.rs - MIT License
 //  MIT License
 //  Copyright (c) 2018 Tyler Laing (ZerothLaw)
@@ -22,12 +23,21 @@
 
 #[macro_use] extern crate winapi;
 extern crate mscorlib_sys;
-
+extern crate regex;
+#[macro_use] extern crate lazy_static;
 #[macro_use] pub mod macros;
 
 pub mod activation;
 pub mod clrdata;
+pub mod isolation;
+pub mod ivalidator;
+pub mod ivehandler;
 pub mod inspectable;
 pub mod gchost;
 pub mod metahost;
 pub mod mscoree;
+
+pub mod core {
+    pub use winapi::Interface;
+    pub use std::ops::Deref;
+}
