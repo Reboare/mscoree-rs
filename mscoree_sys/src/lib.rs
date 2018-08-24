@@ -38,6 +38,7 @@ pub mod metahost;
 pub mod mscoree;
 pub mod openum;
 pub mod strongname;
+pub mod tlbref;
 
 pub mod core {
     pub use winapi::Interface;
