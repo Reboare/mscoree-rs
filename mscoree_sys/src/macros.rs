@@ -24,10 +24,13 @@ use regex::Regex;
 
 #[macro_export]
 macro_rules! STDAPI {
-    (fn $func:ident($($id:ident : $tpe:ty,)*) -> $return_type:ty) => {
-        extern "system" { pub fn $func(
-            $($id: $tpe,)*
-        ) -> $return_type;}
+    ($(#[$attrs:meta])* fn $func:ident($($id:ident : $tpe:ty,)*) -> $return_type:ty) => {
+        extern "system" { 
+            $(#[$attrs])*
+            pub fn $func(
+                $($id: $tpe,)*
+            ) -> $return_type;
+        }
     };
 }
 //pub type FLockClrVersionCallback = extern fn() -> HRESULT;
