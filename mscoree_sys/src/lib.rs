@@ -36,6 +36,7 @@ pub mod inspectable;
 pub mod gchost;
 pub mod metahost;
 pub mod mscoree;
+pub mod openum;
 
 pub mod core {
     pub use winapi::Interface;
