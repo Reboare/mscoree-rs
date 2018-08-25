@@ -1,5 +1,5 @@
-#![feature(macro_literal_matcher)]
-// lib.rs - MIT License
+#![allow(dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+// vererror.rs - MIT License
 //  MIT License
 //  Copyright (c) 2018 Tyler Laing (ZerothLaw)
 // 
@@ -21,30 +21,23 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-#[macro_use] extern crate winapi;
-extern crate mscorlib_sys;
-extern crate regex;
-#[macro_use] extern crate lazy_static;
-#[macro_use] pub mod macros;
+use winapi::ctypes::{c_int, c_void};
+use winapi::shared::minwindef::{DWORD, ULONG};
 
-pub mod activation;
-pub mod clrdata;
-pub mod cor;
-pub mod cordebug;
-pub mod corhdr;
-pub mod isolation;
-pub mod ivalidator;
-pub mod ivehandler;
-pub mod inspectable;
-pub mod gchost;
-pub mod metahost;
-pub mod mscoree;
-pub mod openum;
-pub mod strongname;
-pub mod tlbref;
-pub mod vererror;
+STRUCT!{struct _VerItem
+{
+	dwFlags: DWORD,	 // BYREF / BOXED etc.. see veritem.hpp
+	pv: *mut c_void, // TypeHandle / MethodDesc * etc.
+}}
 
-pub mod core {
-    pub use winapi::Interface;
-    pub use std::ops::Deref;
-}
+STRUCT!{struct tag_VerError {
+    flags: ULONG,
+    opcode: ULONG, 
+    uOffset: ULONG, 
+    Token: ULONG, 
+    item1_flags: ULONG, 
+    item1_data: *mut c_int,
+    item2_flags: ULONG, 
+    item2_data: *mut c_int, 
+}}
+pub type _VerError = tag_VerError;

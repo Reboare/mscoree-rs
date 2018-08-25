@@ -1,5 +1,4 @@
-#![feature(macro_literal_matcher)]
-// lib.rs - MIT License
+// corhdr.rs - MIT License
 //  MIT License
 //  Copyright (c) 2018 Tyler Laing (ZerothLaw)
 // 
@@ -21,30 +20,9 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-#[macro_use] extern crate winapi;
-extern crate mscorlib_sys;
-extern crate regex;
-#[macro_use] extern crate lazy_static;
-#[macro_use] pub mod macros;
-
-pub mod activation;
-pub mod clrdata;
-pub mod cor;
-pub mod cordebug;
-pub mod corhdr;
-pub mod isolation;
-pub mod ivalidator;
-pub mod ivehandler;
-pub mod inspectable;
-pub mod gchost;
-pub mod metahost;
-pub mod mscoree;
-pub mod openum;
-pub mod strongname;
-pub mod tlbref;
-pub mod vererror;
-
-pub mod core {
-    pub use winapi::Interface;
-    pub use std::ops::Deref;
-}
+ENUM!{enum CorSaveSize
+{
+    cssAccurate             = 0x0000,
+    cssQuick                = 0x0001,
+    cssDiscardTransientCAs  = 0x0002,
+}}
