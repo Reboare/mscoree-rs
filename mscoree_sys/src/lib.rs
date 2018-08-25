@@ -36,7 +36,7 @@ pub mod corhlpr;
 pub mod corprof;
 pub mod corpub;
 pub mod corsym;
-pub mod ICeeFileGen;
+pub mod iceefilegen;
 pub mod isolation;
 pub mod ivalidator;
 pub mod ivehandler;
