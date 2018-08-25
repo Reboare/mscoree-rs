@@ -51,7 +51,6 @@ pub type mdGenericParamConstraint = mdToken;
 pub type mdString = mdToken;
 pub type mdCPToken = mdToken;
 
-
 ENUM!{enum CorSaveSize
 {
     cssAccurate             = 0x0000,
