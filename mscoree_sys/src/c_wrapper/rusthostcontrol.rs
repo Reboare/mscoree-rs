@@ -1,5 +1,5 @@
-#![feature(macro_literal_matcher)]
-// lib.rs - MIT License
+#![allow(dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+// rusthostcontrol.rs - MIT License
 //  MIT License
 //  Copyright (c) 2018 Tyler Laing (ZerothLaw)
 // 
@@ -21,37 +21,15 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-#[macro_use] extern crate winapi;
-extern crate mscorlib_sys;
-extern crate regex;
-#[macro_use] extern crate lazy_static;
-#[macro_use] pub mod macros;
+use mscoree::{IHostControl, IHostControlVtbl};
+use mscorlib_sys::system::_AppDomainManager;
+use winapi::shared::winerror::HRESULT;
 
-pub mod activation;
-pub mod clrdata;
-pub mod cor;
-pub mod cordebug;
-pub mod corhdr;
-pub mod corhlpr;
-pub mod corprof;
-pub mod corpub;
-pub mod corsym;
-pub mod iceefilegen;
-pub mod isolation;
-pub mod ivalidator;
-pub mod ivehandler;
-pub mod inspectable;
-pub mod gchost;
-pub mod metahost;
-pub mod mscoree;
-pub mod openum;
-pub mod strongname;
-pub mod tlbref;
-pub mod vererror;
+RIDL!{#[uuid(0x1e20d486, 0x67c7, 0x4cd6, 0xb5, 0x6b, 0x41, 0xd2, 0x29, 0x7d, 0x5b, 0x2f)]
+interface RustHostControl(RustHostControlVtbl): IHostControl(IHostControlVtbl){
+    fn GetAppDomainManager(
+        ppUnkAppDomainManager: *mut *mut _AppDomainManager, 
+    ) -> HRESULT,
+}}
 
-pub mod c_wrapper;
-
-pub mod core {
-    pub use winapi::Interface;
-    pub use std::ops::Deref;
-}
+STDAPI!{fn RustHostControl_new() -> *mut RustHostControl}

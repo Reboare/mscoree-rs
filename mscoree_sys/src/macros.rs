@@ -148,6 +148,7 @@ macro_rules! INTERFACE_BINDING {
         impl $interface {
             $(INTERFACE_BINDING!{@method $(#[$($attrs)*])* fn $method($($p: $t,)*) -> $rtr})+
         }
+        INTERFACE_BINDING!{@deref $interface $pinterface}
     );
     (interface $interface:ident ($vtbl:ident) : $pinterface:ident ($pvtbl:ident) {
     }) => (
@@ -241,18 +242,18 @@ macro_rules! SIGNED_ENUM {
     {enum $name:ident { $variant:ident = $value:expr, $($rest:tt)* }} => {
         pub type $name = i32;
         pub const $variant: $name = $value;
-        ENUM!{@gen $name $variant, $($rest)*}
+        SIGNED_ENUM!{@gen $name $variant, $($rest)*}
     };
     {enum $name:ident { $variant:ident, $($rest:tt)* }} => {
-        ENUM!{enum $name { $variant = 0, $($rest)* }}
+        SIGNED_ENUM!{enum $name { $variant = 0, $($rest)* }}
     };
     {@gen $name:ident $base:ident,} => {};
     {@gen $name:ident $base:ident, $variant:ident = $value:expr, $($rest:tt)*} => {
         pub const $variant: $name = $value;
-        ENUM!{@gen $name $variant, $($rest)*}
+        SIGNED_ENUM!{@gen $name $variant, $($rest)*}
     };
     {@gen $name:ident $base:ident, $variant:ident, $($rest:tt)*} => {
         pub const $variant: $name = $base + 1i32;
-        ENUM!{@gen $name $variant, $($rest)*}
+        SIGNED_ENUM!{@gen $name $variant, $($rest)*}
     };
 }
