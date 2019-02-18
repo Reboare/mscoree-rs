@@ -20,11 +20,12 @@
 //  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
+
+//Todo: finish prototypal work on host control 
 use std::ptr;
-use std::{thread, time};
 
 use mscoree_sys::metahost::{CLSID_CLRMetaHost, CLRCreateInstance, ICLRMetaHost, ICLRRuntimeInfo, IID_ICLRMetaHost, IID_ICLRRuntimeInfo};
-use mscoree_sys::mscoree::{ICLRRuntimeHost, ICLRControl, CLSID_CLRRuntimeHost, IID_ICLRRuntimeHost, IHostControl, IHostControlVtbl};
+use mscoree_sys::mscoree::{ICLRRuntimeHost, CLSID_CLRRuntimeHost, IID_ICLRRuntimeHost, IHostControl };
 use mscoree_sys::c_wrapper::rusthostcontrol::{RustHostControl, RustHostControl_new};
 use mscorlib_safe::BString;
 use mscorlib_sys::system::_AppDomainManager;
@@ -227,10 +228,11 @@ trace_macros!(false);
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::{thread, time};
     #[test]
     fn load_test() {
-        let mut metahost = MetaHost::new().unwrap();
-        let mut runtime = metahost.runtime(RuntimeVersion::V4).unwrap();
+        let metahost = MetaHost::new().unwrap();
+        let runtime = metahost.runtime(RuntimeVersion::V4).unwrap();
         let mut host = runtime.runtime_host().unwrap();
         let hc = host.start().unwrap();
         thread::sleep(time::Duration::from_secs(5));

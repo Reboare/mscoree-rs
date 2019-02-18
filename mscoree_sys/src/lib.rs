@@ -1,4 +1,3 @@
-#![feature(macro_literal_matcher)]
 // lib.rs - MIT License
 //  MIT License
 //  Copyright (c) 2018 Tyler Laing (ZerothLaw)
