@@ -1,3 +1,0 @@
-LIBRARY mscoree_wrapper
-EXPORTS
-    RustHostControl_new @1

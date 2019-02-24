@@ -27,7 +27,7 @@ use winapi::shared::winerror::HRESULT;
 use winapi::um::oaidl::SAFEARRAY;
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
-use ivehandler::{IVEHandler, VEContext};
+use crate::ivehandler::{IVEHandler, VEContext};
 
 ENUM!{enum ValidatorFlags
 {

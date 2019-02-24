@@ -27,7 +27,7 @@ use winapi::shared::basetsd::{UINT64, ULONG32,ULONG64};
 use winapi::shared::minwindef::{BOOL, DWORD};
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
-use corhdr::mdMethodDef;
+use crate::corhdr::mdMethodDef;
 
 pub type HPROCESS = *mut c_void;
 pub type HTHREAD = *mut c_void;

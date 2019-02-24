@@ -20,26 +20,19 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-extern crate cc;
-use std::path::{Path};
-fn build_c_lib() {
-	let c_dir = Path::new("src\\c\\");
-	let c_dir = c_dir.to_path_buf();
-	let windows_include = Path::new("C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\Include\\um");
-	let mscoree_include = Path::new("C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\Lib\\um\\x64");
-	let clr_runtime_include = Path::new("C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
-	cc::Build::new()
-		.cpp(true)
-		.files(&[c_dir.join("mscoree_wrapper.cpp"), c_dir.join("dllmain.cpp"), c_dir.join("stdafx.cpp")])
-		.include(windows_include)
-		.include(clr_runtime_include)
-		.include(mscoree_include)
-		.flag(&format!("/DEF:{:?}", c_dir.join("mscoree_wrapper.def")))
-		.compile("mscoree_wrapper");
+use winreg::RegKey;
+use winreg::enums::*;
+
+fn get_windows_kit() -> String {
+	let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+	let subkey = "SOFTWARE\\WOW6432Node\\Microsoft\\Microsoft SDKs\\NETFXSDK\\4.6.1";
+    let netfxsdk = hklm.open_subkey(subkey).expect("Could not open subkey");
+	let dir: String = netfxsdk.get_value("KitsInstallationFolder").expect("Could not open Reg value 'KitsInstallationFolder'");
+	dir
 }
 
+
 fn main() {
-    build_c_lib();
     println!("cargo:rustc-link-lib=static=mscoree");
-    println!("cargo:rustc-link-search=native=C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\Lib\\um\\x64");
+    println!("cargo:rustc-link-search=native={}\\Lib\\um\\x64", get_windows_kit());
 }

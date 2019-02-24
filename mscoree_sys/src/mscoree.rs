@@ -37,8 +37,8 @@ use winapi::um::processthreadsapi::LPPROCESS_INFORMATION;
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 use winapi::um::winnt::{EXCEPTION_POINTERS, PACL, PVOID,  WAITORTIMERCALLBACK};
 
-use activation::IActivationFactory;
-use gchost::COR_GC_STATS;
+use crate::activation::IActivationFactory;
+use crate::gchost::COR_GC_STATS;
 
 pub type HWND = *mut c_void;
 

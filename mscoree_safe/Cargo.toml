@@ -6,5 +6,5 @@ authors = ["Tyler Laing <trinioler@gmail.com>"]
 [dependencies]
 mscorlib-sys = {version = "0.1.10"}
 mscorlib-safe = {version = "0.1.2"}
-mscoree_sys = {version = "0.1.0", path="..\\mscoree_sys"}
+mscoree_sys_2 = {version = "0.1.0", path="..\\mscoree_sys"}
 winapi = {version = "0.3.5", features=["minwindef"]}

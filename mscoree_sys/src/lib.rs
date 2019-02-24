@@ -22,8 +22,6 @@
 
 #[macro_use] extern crate winapi;
 extern crate mscorlib_sys;
-extern crate regex;
-#[macro_use] extern crate lazy_static;
 #[macro_use] pub mod macros;
 
 pub mod activation;
@@ -47,8 +45,6 @@ pub mod openum;
 pub mod strongname;
 pub mod tlbref;
 pub mod vererror;
-
-pub mod c_wrapper;
 
 pub mod core {
     pub use winapi::Interface;

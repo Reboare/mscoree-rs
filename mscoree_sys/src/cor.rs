@@ -31,7 +31,7 @@ use winapi::um::winnt::{IMAGE_SCN_MEM_READ, IMAGE_SCN_CNT_INITIALIZED_DATA,  IMA
 use winapi::um::objidlbase::IStream;
 use winapi::um::unknwnbase::{IUnknown, IUnknownVtbl};
 
-use corhdr::{CorSaveSize, mdToken, mdTypeDef};
+use crate::corhdr::{CorSaveSize, mdToken, mdTypeDef};
 
 DEFINE_GUID!(LIBID_ComPlusRuntime, 0xbed7f4ea, 0x1a96, 0x11d2, 0x8f, 0x8, 0x0, 0xa0, 0xc9, 0xa6, 0x18, 0x6d);
 DEFINE_GUID!(GUID_ExportedFromComPlus, 0x90883f05, 0x3d28, 0x11d2, 0x8f, 0x17, 0x0, 0xa0, 0xc9, 0xa6, 0x18, 0x6d);

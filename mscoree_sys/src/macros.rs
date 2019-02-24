@@ -20,8 +20,6 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-use regex::Regex;
-
 #[macro_export]
 macro_rules! STDAPI {
     ($(#[$attrs:meta])* fn $func:ident($($id:ident : $tpe:ty,)*) -> $return_type:ty) => {
@@ -52,26 +50,6 @@ macro_rules! FUNC_PTR {
     };
 }
 
-lazy_static!{
-    static ref UUID_RE: Regex = Regex::new(r"([\w\d]{8})-([\w\d]{4})-([\w\d]{4})-([\w\d]{2})([\w\d]{2})-([\w\d]{2})([\w\d]{2})([\w\d]{2})([\w\d]{2})([\w\d]{2})([\w\d]{2})").unwrap();
-}
-
-#[macro_export]
-macro_rules! STR_TO_UUID {
-    ($uuid:ident, $val:expr) => {
-        lazy_static!{
-            static ref $uuid = {
-                let mut v = Vec::new();
-                for cap in UUID_RE.captures_iter($val) {
-                    for i in 1..cap.length() {
-                        v.push(u32::from_str_radix(&cap[i], 16).unwrap());
-                    }
-                }
-                v
-            }; 
-        }
-    };
-}
 
 // #[macro_export]
 // macro_rules! UNION {
