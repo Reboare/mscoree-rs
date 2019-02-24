@@ -1,13 +1,13 @@
 use std::ptr;
 
-extern crate mscoree_sys;
+extern crate mscoree_sys_2;
 
 #[macro_use]
 extern crate winapi;
 
 use winapi::ctypes::c_void;
 
-use mscoree_sys::metahost::{CLRCreateInstance, CLSID_CLRMetaHost, ICLRMetaHost};
+use mscoree_sys_2::metahost::{CLRCreateInstance, CLSID_CLRMetaHost, ICLRMetaHost};
 
 DEFINE_GUID!{IID_ICLRMETAHOST, 
 	0xD332DB9E, 0xB9B3, 0x4125, 0x82, 0x07, 0xA1, 0x48, 0x84, 0xF5, 0x32, 0x16}
