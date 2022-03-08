@@ -21,9 +21,8 @@
 //  SOFTWARE.
 
 #[macro_use] extern crate winapi;
-extern crate mscorlib_sys;
 #[macro_use] pub mod macros;
-
+#[allow(unused_parens)]
 pub mod activation;
 pub mod clrdata;
 pub mod cor;

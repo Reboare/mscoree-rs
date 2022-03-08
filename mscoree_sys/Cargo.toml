@@ -8,8 +8,5 @@ edition = "2018"
 
 
 [dependencies]
-mscorlib-sys = { version = "0.1.11" }
 winapi = { version = "0.3.6", features = ["combaseapi", "hstring", "oaidl", "oleauto", "processthreadsapi", "winerror",]}
 
-[build-dependencies]
-winreg = "0.6"
